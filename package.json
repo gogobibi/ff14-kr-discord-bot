@@ -1,0 +1,33 @@
+{
+  "name": "ff14-kr-discord-bot",
+  "version": "1.0.0",
+  "description": "FF14 KR event Discord bot — scrape, classify, notify",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "deploy:commands": "node src/deploy-commands.js",
+    "deploy:emojis": "node src/deploy-emojis.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gogobibi/ff14-kr-discord-bot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gogobibi/ff14-kr-discord-bot/issues"
+  },
+  "homepage": "https://github.com/gogobibi/ff14-kr-discord-bot#readme",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "better-sqlite3": "^12.9.0",
+    "cheerio": "^1.2.0",
+    "discord.js": "^14.26.3",
+    "dotenv": "^17.4.2",
+    "node-cron": "^4.2.1",
+    "undici": "^8.1.0"
+  }
+}
