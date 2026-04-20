@@ -1,0 +1,577 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <title>파이널판타지14(FINAL FANTASY XIV)</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1280">
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="description" content="파이널판타지14(FINAL FANTASY XIV)" />
+    
+    <link href="/favicon.ico" rel="shortcut icon" type="image/x-icon">
+    <link rel="stylesheet" href="//image.ff14.co.kr/html2/css/style.min.css?202604200347">
+<link rel="stylesheet" href="//image.ff14.co.kr/html2/css/sprites.css?202604200347">
+<link rel="stylesheet" href="//image.ff14.co.kr/html2/libs/fancybox/jquery.fancybox.min.css">
+
+    
+    <script type="text/javascript" src="//image.ff14.co.kr/html2/libs/jquery/jquery-1.11.1.min.js"></script>
+<script type="text/javascript" src="//image.ff14.co.kr/html2/libs/jquery/jquery.easing.1.3.js"></script>
+<script type="text/javascript" src="//image.ff14.co.kr/html2/libs/touchslider/jquery.touchSlider.js"></script>
+<script type="text/javascript" src="//image.ff14.co.kr/html2/libs/dotdotdot/jquery.dotdotdot.min.js"></script>
+<script type="text/javascript" src="//image.ff14.co.kr/html2/libs/fancybox/jquery.fancybox.min.js"></script>
+<script type="text/javascript" src="//image.ff14.co.kr/html2/js/uph-1.0.4.min.js?202604200347" charset="utf-8"></script>
+<script type="text/javascript" src="//image.ff14.co.kr/html2/scripts/jquery.unobtrusive-ajax.min.js"></script>
+<script type="text/javascript" src="//image.ff14.co.kr/html2/libs/webfont/webfont.js"></script>
+<script type="text/javascript" src="//image.ff14.co.kr/html2/scripts/stringprototype.js"></script>
+<script type="text/javascript" src="//image.ff14.co.kr/html2/scripts/pwp.lib.js" charset="utf-8"></script>
+<script type="text/javascript" src="//image.ff14.co.kr/html2/scripts/site-board.js?202604200347"></script>
+    <script type="text/javascript" src="/shop/Common/js/Shop.js"></script>
+
+<!-- 20181220 메인 개편: uph 추가-->
+<script type="text/javascript" src="//image.ff14.co.kr/html2/js/uph-1.0.4.min.js" charset="utf-8"></script>
+<!-- 24.08.12 V7.0 공홈 메인 업데이트 -->
+<script type="text/javascript" src="//image.ff14.co.kr/html2/plugin/js/swiper-bundle.min.js" charset="utf-8"></script>
+<link rel="stylesheet" href="//image.ff14.co.kr/html2/plugin/css/swiper-bundle.min.css" />
+<!-- // 24.08.12 V7.0 공홈 메인 업데이트 -->
+
+
+<script type="text/javascript">
+    pwp.lib.init({
+        rootUrl: '/',
+        loginUrl: '/serviceInterface?ac=login',
+        logoutUrl: '/serviceInterface?ac=logout',
+        returnUrl: '%2fnews%2fevent%3fcategory%3d1%26page%3d1',
+        imgUrl: '//image.ff14.co.kr/',
+        staticUrl: '//image.ff14.co.kr/html2/',
+        isLogin: false,
+        isMember: false,
+        memberType: '',
+        CSiteNo: '0'
+    });
+</script>
+    <!-- Google Adwords Code -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=AW-16482050061"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'AW-16482050061');
+        gtag('config', 'UA-89468196-1');
+        gtag('config', 'G-LKTWR95KH2');
+        var sendGaEvent = function (action, category, label) {
+            try {
+                gtag('event', action, {
+                    'event_category': category,
+                    'event_label': label
+                });
+            } catch (e) {
+            }
+        }
+    </script>
+    <!-- End Google Adwords Code -->
+    <!-- Facebook Pixel Code -->
+    <script>
+        !function (f, b, e, v, n, t, s) {
+            if (f.fbq) return; n = f.fbq = function () {
+                n.callMethod ?
+                    n.callMethod.apply(n, arguments) : n.queue.push(arguments)
+            };
+            if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0';
+            n.queue = []; t = b.createElement(e); t.async = !0;
+            t.src = v; s = b.getElementsByTagName(e)[0];
+            s.parentNode.insertBefore(t, s)
+        }(window, document, 'script',
+            'https://connect.facebook.net/en_US/fbevents.js');
+        //fbq('init', '1679500412360336');
+        fbq('init', '660599594615143');
+        fbq('track', 'PageView');
+    </script>
+    <!-- End Facebook Pixel Code -->
+    <!-- Google Tag Manager -->
+    <script>
+        (function (w, d, s, l, i) {
+            w[l] = w[l] || []; w[l].push(
+
+                { 'gtm.start': new Date().getTime(), event: 'gtm.js' }
+
+            ); var f = d.getElementsByTagName(s)[0],
+                j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : ''; j.async = true; j.src =
+                    'https://www.googletagmanager.com/gtm.js?id=' + i + dl; f.parentNode.insertBefore(j, f);
+        })(window, document, 'script', 'dataLayer', 'GTM-KWCFZ3Z');</script>
+    <!-- End Google Tag Manager -->
+    <!-- Twitter universal website tag code -->
+    <script>
+        !function (e, t, n, s, u, a) {
+            e.twq || (s = e.twq = function () {
+                s.exe ? s.exe.apply(s, arguments) : s.queue.push(arguments);
+            }, s.version = '1.1', s.queue = [], u = t.createElement(n), u.async = !0, u.src = '//static.ads-twitter.com/uwt.js',
+                a = t.getElementsByTagName(n)[0], a.parentNode.insertBefore(u, a))
+        }(window, document, 'script');
+        // Insert Twitter Pixel ID and Standard Event data below
+        twq('init', 'o5163');
+        twq('track', 'PageView');
+    </script>
+    <!-- End Twitter universal website tag code -->
+    <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=660599594615143&ev=PageView&noscript=1" /></noscript>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript>
+        <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KWCFZ3Z" height="0" width="0" style="display:none;visibility:hidden"></iframe>
+    </noscript>
+    <!-- End Google Tag Manager (noscript) -->
+    <!-- Criteo 로더 파일 -->
+    <script type="text/javascript" src="//dynamic.criteo.com/js/ld/ld.js?a=111630" async="true"></script>
+    <!-- END Criteo 로더 파일 -->
+
+
+
+    
+</head>
+<body >
+
+    <div class="wrap_new">
+        <div data-role="gnb" class="main_gnb">
+    <div class="gnb_inner">
+        <a href="/main" class="logo"><span class="hidden">FINAL FANTASY XIV</span></a>
+        <ul class="nav">
+            <li>
+                <a href="/news"><span>새소식</span></a>
+                <ul class="depth">
+                    <li><a href="/news/notice">공지사항</a></li>
+                    <li><a href="/news/event">이벤트</a></li>
+                    <li><a href="/news/patchnote">업데이트 노트</a></li>
+                </ul>
+            </li>
+            <li>
+                <a href="/pr/finalfantasyxiv"><span>게임소개</span></a>
+                <ul class="depth">
+                    <li><a href="/pr/story">스토리</a></li>
+                    <li><a href="/pr/tribe">종족</a></li>
+                    <li><a href="/pr/jobs">직업</a></li>
+                    <li><a href="/pr/contents">콘텐츠</a></li>
+                </ul>
+            </li>
+            <li>
+                <a href="/eorzea"><span>에오르제아 소식</span></a>
+                <ul class="depth">
+                    <li><a href="/eorzea/tv">EORZEA TV</a></li>
+                    <li><a href="/eorzea/gmnote">GM 노트</a></li>
+                    
+                    <li><a href="/events/pub/LetterQna" target="_blank">레터라이브 Q&amp;A<i class="icon_new_window">새 창 열기</i></a></li>
+                    
+                </ul>
+            </li>
+            <li>
+                <a href="/community/forum"><span>커뮤니티</span></a>
+                <ul class="depth">
+                    <li><a href="/community/forum">자유</a></li>
+                    <li><a href="/community/knowledge">정보 공유</a></li>
+                    <li><a href="/community/screenshot">스크린샷</a></li>
+                    <li><a href="/community/fanart">팬아트</a></li>
+                    <li><a href="/community/freecompany">모집</a></li>
+                </ul>
+            </li>
+            <li>
+                <a href="/download"><span>다운로드</span></a>
+                <ul class="depth">
+                    <li><a href="/download">게임 다운로드</a></li>
+                    <li><a href="/media">멀티미디어</a></li>
+                </ul>
+            </li>
+            <li>
+                <a href="/support"><span>고객센터</span></a>
+                <ul class="depth">
+                    <li><a href="/support">고객센터</a></li>
+                    
+                    
+                    <li><a href="/security/otp">U-OTP+</a></li>
+                    <li><a href="/security/ipm">IP관리</a></li>
+                </ul>
+            </li>
+            <li class="shop">
+                <a href="/serviceInterface?ac=shop" target="_blank"><em>크리스탈샵</em> <span class="hidden">새 창 열기</span></a>
+            </li>
+        </ul>
+
+        <div class="util">
+                <ul>
+                    <li><a href="javascript:;" onclick="pwp.lib.goLogin();">로그인</a></li>
+                    <li><a href="/serviceInterface?ac=registermember">회원가입</a></li>
+                    <li class="pc">
+                        
+                        <span>
+                            <em id="pcbang" class="pcbang">OFF</em>
+                            PC방
+                        </span>
+                    </li>
+                </ul>
+            <a href="#gamestart" class="btn_gamestart" game-start="ff14kr" game-channel="">게임 시작</a>
+        </div>
+
+        <script>
+            (function () {
+                $.post("/pcroom1", function (result) {
+                    if (result.code == false) { //off
+                        $('#pcbang').removeClass('on');
+                        $('#pcbang').text("OFF");
+                    } else {
+                        $('#pcbang').addClass('on');
+                        $('#pcbang').text("ON");
+                    }
+                });
+            })();
+        </script>
+
+    </div>
+</div>
+
+
+
+
+
+
+    </div>
+    
+    
+
+
+
+
+
+
+    <script type="text/javascript">
+        var ScreenManager = {
+            checkDevice: function () {
+                var ua = navigator.userAgent.toLowerCase(), isMobile;
+                isMobile = /mobi|iphone|ipad|android|windows ce|blackberry|symbian|windows phone|webos|opera mini|opera mobi|polaris|iemobile|lgtelecom|nokia|sonyericsson/i.test(ua) || /LG|SAMSUNG|Samsung/i.test(ua); // true | false
+
+                if (isMobile) {
+                    
+                        /* 화면 유지 상태이면 페이지 하단 모바일 버전 버튼 추가 */
+                        $(document).ready(function () {
+                            $('<a href="https://m.ff14.co.kr/main" style="display:block;padding:2em 0;min-width:1440px;background-color:#EFEFEF;border:1px solid #CCC;text-align:center;box-sizing:border-box;">모바일버전 보기</a>').appendTo('body');
+                        });
+                    
+                };
+            },
+            switchScreen: function (url) {
+                location.href = '/serviceInterface?ac=SwitchScreen&returnUrl=' + url;
+            },
+            goMobileVer: function () {
+                ScreenManager.switchScreen('/serviceInterface?ac=fos');
+            }
+        };
+        ScreenManager.checkDevice();
+    </script>
+
+
+<div class="ff14_wrap">
+    <div class="sub_wrap">
+        <div class="contents">
+            
+<div class="header">
+    <h1>이벤트</h1>
+    <ul>
+        <li><a href="/main"><span>홈</span></a></li>
+        <li><a href="/news/notice">새소식</a></li>
+        <li><a href="/news/event"><strong>이벤트</strong></a></li>
+    </ul>
+</div>
+<div class="section">
+    <ul class="ff14_subtab s3">
+        <li class="on"><a href="/news/event?category=1"><span>진행 중인 이벤트</span></a></li>
+        <li class=""><a href="/news/event?category=2"><span>종료 된 이벤트</span></a></li>
+        <li><a href="/news/lucky"><span>당첨자 발표</span></a></li>
+    </ul>
+    
+
+<div class="ff14_bnr_list_wrap">
+    <ul class="banner_list event">
+                <li>
+                        <a href="/news/event/view/731?category=1&amp;page=1" target="_self">
+                            <span class="banner_img_wrap">
+                                        <span class="banner_img" style="background-image:url('//static.ff14.co.kr/Contents/2026/04/C8C9FEC643AD649B2B2195F02D547F46561F52340064A1AFC8560071BD6C34D6.jpg');"></span>
+                            </span>
+                                <span class="txt_box">
+                                    <span class="title">
+                                        <span class="txt">알 사냥 축제 기념 시즈널 상품 출시!</span>
+                                    </span>
+                                    <span class="date">26-04-14 ~ 26-04-27</span>
+                                    <span class="summary dot">알 사냥 축제를 기념하여 만들어진 패션 소품을<br>
+크리스탈샵에서 만나보세요!</span>
+                                </span>
+                        </a>
+                </li>
+                <li>
+                        <a href="/news/event/view/730?category=1&amp;page=1" target="_self">
+                            <span class="banner_img_wrap">
+                                        <span class="banner_img" style="background-image:url('//static.ff14.co.kr/Contents/2026/04/4F10EDF0E8E0BB01A5F57CE0BF6ED881EAC76890E887A1CB0AE3F66E60A788A5.jpg');"></span>
+                            </span>
+                                <span class="txt_box">
+                                    <span class="title">
+                                        <span class="txt">알 사냥 축제</span>
+                                    </span>
+                                    <span class="date">26-04-10 ~ 26-04-27</span>
+                                    <span class="summary dot">달걀 찾기도 신나게!</span>
+                                </span>
+                        </a>
+                </li>
+                <li>
+                        <a href="/news/event/view/729?category=1&amp;page=1" target="_self">
+                            <span class="banner_img_wrap">
+                                        <span class="banner_img" style="background-image:url('//static.ff14.co.kr/Contents/2026/04/CE394381EC70C4FEF77F5E5F6120210B2354384A99A7E504D61CB87059FD6018.jpg');"></span>
+                            </span>
+                                <span class="txt_box">
+                                    <span class="title">
+                                        <span class="txt">팬페스티벌 기념 신규 상품 출시</span>
+                                    </span>
+                                    <span class="date">26-04-08 ~ 26-04-28</span>
+                                    <span class="summary dot">팬페스티벌 기념 신규 상품 출시</span>
+                                </span>
+                        </a>
+                </li>
+                <li>
+                        <a href="/news/event/view/728?category=1&amp;page=1" target="_self">
+                            <span class="banner_img_wrap">
+                                        <span class="banner_img" style="background-image:url('//static.ff14.co.kr/Contents/2026/04/EF0E7880A7728708FC69AE46D6EEEC4D84F7E84BB89561C4D366EB1E92AC6785.jpg');"></span>
+                            </span>
+                                <span class="txt_box">
+                                    <span class="title">
+                                        <span class="txt">게임 정보 이관 혜택</span>
+                                    </span>
+                                    <span class="date">26-04-01 ~ 26-07-09</span>
+                                    <span class="summary dot">카카오 채널링에서 오신 모험가님을 환영합니다.<br>
+게임 정보 이관을 완료하신 모험가님은 무료 이용권을 받아가세요!                                                                             </span>
+                                </span>
+                        </a>
+                </li>
+                <li>
+                        <a href="/news/event/view/727?category=1&amp;page=1" target="_self">
+                            <span class="banner_img_wrap">
+                                        <span class="banner_img" style="background-image:url('//static.ff14.co.kr/Contents/2026/03/9816BA18A1AFFB90FFD32FBD031810CF8DA781A3CD2681BF92A6E7194F07BC45.jpg');"></span>
+                            </span>
+                                <span class="txt_box">
+                                    <span class="title">
+                                        <span class="txt">함께하는 선물 이벤트</span>
+                                    </span>
+                                    <span class="date">26-03-31 ~ 26-04-27</span>
+                                    <span class="summary dot">신규 상품부터 추천 상품까지!<br>
+하나 되는 모험을 모두 함께 준비해 보세요.</span>
+                                </span>
+                        </a>
+                </li>
+                <li>
+                        <a href="/news/event/view/726?category=1&amp;page=1" target="_self">
+                            <span class="banner_img_wrap">
+                                        <span class="banner_img"></span>
+                            </span>
+                                <span class="txt_box">
+                                    <span class="title">
+                                        <span class="txt">모그모그★컬렉션 ~안개 속 경전~</span>
+                                    </span>
+                                    <span class="date">26-03-31 ~ 26-04-28</span>
+                                    <span class="summary dot">'희소 석판: 경전'을 모아 방랑 모그리가 준비한<br>
+특별한 보상으로 교환해 보세요!</span>
+                                </span>
+                        </a>
+                </li>
+    </ul>
+
+</div>
+    <ul class="ff14_pagination">
+                <li class="on">
+                    <a href="/news/event?category=1&amp;page=1">1</a>
+                </li>
+                <li class="">
+                    <a href="/news/event?category=1&amp;page=2">2</a>
+                </li>
+                <li class="">
+                    <a href="/news/event?category=1&amp;page=3">3</a>
+                </li>
+    </ul>
+
+
+</div>
+        </div>
+        <div class="aside">
+            <!-- 구부 -->
+            <div class="goobbue"></div>
+            
+
+<div class="wrap_line_one">
+    <div class="ff14_login_wrap">
+        <div class="pcbang on" style="display:none;">
+            <span><a href="/events/pub/pcroom" target="_blank">가맹 PC방 혜택보기</a></span>
+            <span class="conn">PC방 접속 중</span>
+        </div>
+        <div class="pcbang off">
+            <span><a href="javascript: volid(0)" onclick="window.open('http://pcbang.webzen.co.kr/PCSearch/findPCBang?code=SVR318', 'pcroom', 'width=1020, height=730, menubar=no, status=no, toolbar=no'); return false;">가맹 PC방 알아보기</a></span>
+            <span class="conn">PC방 미 접속</span>
+        </div>
+        <!-- 비로그인 -->
+            <div class="welcome_wrap">
+                <div class="welcome">
+                        <span class="info">로그인 후 도착한 알림을 확인하세요!</span>
+
+                        <button type="button" class="btn_login" onclick="pwp.lib.goLogin();">로그인</button>
+                        <button type="button" class="btn_signup" onclick="location.href = '/serviceInterface?ac=RegisterMember';">회원가입</button>
+                        <ul>
+                                <li><a href="/serviceInterface?ac=FindID">계정/비밀번호 찾기</a></li>
+                                                            <!-- 24.07.26 수정 (휴면 계정 관리 제거) -->
+                                <!-- // 24.07.26 수정 (휴면 계정 관리 제거) -->
+                        </ul>
+                </div>
+            </div>
+    </div>
+</div>
+<script type="text/javascript">
+        function loadComp() {
+            $(".user_tab span.new").removeClass("new");
+        }
+        (function () {
+            $.post("/pcroom1", function (result) {
+                if (result.code == false) {
+                    $("div.pcbang.on").hide();
+                    $("div.pcbang.off").show();
+                } else {
+                    $("div.pcbang.on").show();
+                    $("div.pcbang.off").hide();
+                }
+            });
+        })();
+        $(function () {
+            var tab = $("ul.user_tab li.on a").get(0);
+            if (tab) { tab.click(); }
+
+            $(".ff14_login_wrap .login_box .user_tab li").click(function () {
+                if (!$(this).hasClass("on")) {
+                    $(".ff14_login_wrap .login_box .user_tab li").removeClass("on");
+                    $(this).addClass("on");
+                }
+                $(this).children("a:first").get(0).click();
+            });
+        });
+    </script>
+
+            
+    <div class="sub_img_slide">
+        <div class="img_slide">
+            <ul>
+                    <li>
+                            <a href="/events/fun/2026/egghunts" target="_blank"><img src="//static.ff14.co.kr/Contents/2026/04/6A649FE7BDE7CDDF3B44BA9CBB1779FE66B9CF4B21A39888E9EF635B9E4D18F0.jpg" alt="알 사냥 축제"></a>
+                    </li>
+                    <li>
+                            <a href="/news/event/view/731" target="_blank"><img src="//static.ff14.co.kr/Contents/2026/04/1DEBEE1380A7129811D95A50C9BAC55D92DD69217A3A6C14ADAC9679CA4A881A.jpg" alt="알 사냥 축제 기념 시즈널 상품 출시!"></a>
+                    </li>
+                    <li>
+                            <a href="/patch/v7.5_note/index" target="_blank"><img src="//static.ff14.co.kr/Contents/2026/04/59EEE699E5FEFEAE333A48052A005C7F9CFEACBA9A29243BC85846324220B13B.jpg" alt="PATCH 7.5 업데이트 노트"></a>
+                    </li>
+                    <li>
+                            <a href="/events/fun/2026/aprshop" target="_blank"><img src="//static.ff14.co.kr/Contents/2026/04/877EA058A7C60CA83A191FB884A90ED801C72CCBE1B3461D43F2CDCA023C6B86.jpg" alt="팬페스티벌 기념 신규 상품 출시"></a>
+                    </li>
+                    <li>
+                            <a href="/eorzea/tv/view/213" target="_blank"><img src="//static.ff14.co.kr/Contents/2026/04/9757CE1962BE5FC1BB4E67674E4266856F63B6EFC9C372DDCDDA3A39D4A955FE.jpg" alt="팬페스티벌 2026 in 애너하임 기조강연 생중계"></a>
+                    </li>
+                    <li>
+                            <a href="/events/fun/2026/marshop2" target="_blank"><img src="//static.ff14.co.kr/Contents/2026/03/26C551D1ED8A78C0DB436500FD34F3C11BCF0921999740ECB347722BC896C9CB.jpg" alt="함께하는 선물 이벤트"></a>
+                    </li>
+                    <li>
+                            <a href="/events/fun/mogmog-collection/74x_part1" target="_blank"><img src="//static.ff14.co.kr/Contents/2026/03/33078ABD2A41281EF796D175132D418B5D92484186DD10A5AC97B824DEA8222F.jpg" alt="모그모그★컬렉션 ~안개 속 경전~"></a>
+                    </li>
+                    <li>
+                            <a href="https://youtu.be/watch?v=M1YQQEcCpEI" target="_blank"><img src="//static.ff14.co.kr/Contents/2026/04/7F464A9899B817FC1CC5EC0AA1493BE2509D5B2DA1223BC5239389A2392983EC.jpg" alt="제92회 프로듀서 레터라이브 동시통역 생중계 다시보기"></a>
+                    </li>
+                    <li>
+                            <a href="https://www.youtube.com/live/iCvkIXDSoy0" target="_blank"><img src="//static.ff14.co.kr/Contents/2026/03/BC0DFBA93C83BCA80D7C630314583E606207DDDDDCC48C8FDFE7FF86B31687DD.jpg" alt="빛의영자 &#39;아르카디아의 정점에 올라서라!&#39; 다시보기"></a>
+                    </li>
+                    <li>
+                            <a href="/eorzea/gmnote/view/213" target="_blank"><img src="//static.ff14.co.kr/Contents/2026/01/B16C284BEF0B0268947BC8D96C735649CB5091E5E0BF62C94B7FBFF8C6020A97.jpg" alt="GM노트 205화"></a>
+                    </li>
+            </ul>
+        </div>
+        <div class="paging"></div>
+    </div>
+
+        </div>
+    </div>
+    <div class="dbclick"></div>
+</div>
+
+    <!-- 24.11.27 수정 -->
+    <a href="#none" class="btn_top">TOP</a>
+    <!-- // 24.11.27 수정 -->
+
+      <!-- 23.08.02 권리표기 및 CI 업데이트 -->
+<footer>
+    <script type="text/javascript" src="//image.ff14.co.kr/common/js/footer.js"></script>
+    <script>
+        $(window).on("load", function () {
+            fn_footer("type1", true);
+        });
+    </script>
+</footer>
+<!-- //23.08.02 권리표기 및 CI 업데이트 -->
+    <!-- Enliple Tracker Start 20220915-->
+    <script type="text/javascript">
+        (function (a, g, e, n, t) { a.enp = a.enp || function () { (a.enp.q = a.enp.q || []).push(arguments) }; n = g.createElement(e); n.async = !0; n.defer = !0; n.src = "https://cdn.megadata.co.kr/dist/prod/enp_tracker_self_hosted.min.js"; t = g.getElementsByTagName(e)[0]; t.parentNode.insertBefore(n, t) })(window, document, "script");
+        enp('create', 'common', 'ffxivkorea', { device: 'W' }); // W:웹, M: 모바일, B: 반응형
+        enp('send', 'common', 'ffxivkorea');
+    </script>
+    <!-- Enliple Tracker End 20220915 -->
+    <!-- Criteo 홈페이지 태그 -->
+    <script type="text/javascript">
+        window.criteo_q = window.criteo_q || [];
+        var deviceType = /iPad/.test(navigator.userAgent) ? "t" : /Mobile|iP(hone|od)|Android|BlackBerry|IEMobile|Silk/.test(navigator.userAgent) ? "m" : "d";
+        window.criteo_q.push(
+            { event: "setAccount", account: 111630 },
+            { event: "setEmail", email: "" },
+            { event: "setZipcode", zipcode: "" },
+            { event: "setSiteType", type: deviceType },
+            { event: "viewHome" });
+    </script>
+    <!-- END Criteo 홈페이지 태그 -->
+    <!-- WIDERPLANET  SCRIPT START 2025.5.22 -->
+    <div id="wp_tg_cts" style="display:none;"></div>
+    <script type="text/javascript">
+        var wptg_tagscript_vars = wptg_tagscript_vars || [];
+        wptg_tagscript_vars.push(
+            (function () {
+                return {
+                    wp_hcuid: "", 
+                    ti: "21976",	
+                    ty: "Home",	
+                    device: "web"	
+
+                };
+            }));
+    </script>
+    <script type="text/javascript" async src="//cdn-aitg.widerplanet.com/js/wp_astg_4.0.js"></script>
+    <!-- // WIDERPLANET  SCRIPT END 2025.5.22 -->
+
+
+    
+    
+    <!--[if gte IE 9]><!-->
+    <script src="//image.ff14.co.kr/html2/js/ui.js?202604200347"></script>
+    <!--<![endif]-->
+    
+
+<script type="text/javascript">function trackImageButtonLink(src, url){sendImageButtonLink(url);return false;};function sendImageButtonLink (url) {if (!!url) {location.href = url;};};</script>
+<!-- Tracking -->
+<script>
+		(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+		(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+		m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+		})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+		ga('create', 'UA-59673453-1', 'auto');
+		ga('require', 'linkid', 'linkid.js');
+		ga('send', 'pageview');
+            
+            ga('create', 'UA-89468196-1', 'auto', { 'name': 'ff14team' });
+            ga('ff14team.send', 'pageview');
+            
+</script>
+<!-- /close Tracking -->
+
+</body>
+</html>
