@@ -4,7 +4,6 @@ import {
   TextDisplayBuilder,
   SeparatorBuilder,
   ThumbnailBuilder,
-  ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
 } from "discord.js";
@@ -63,9 +62,12 @@ function categoryMeta(event) {
 function buildEventSection(event) {
   const meta = categoryMeta(event);
   const { badge } = formatDday(event.end_date);
+  const titleLine = event.url
+    ? `### [${event.title}](${event.url})`
+    : `### ${event.title}`;
   const content =
-    `### ${emojiTag(meta.key)} ${event.title}\n` +
-    `${badge}\n` +
+    `${titleLine}\n` +
+    `${emojiTag(meta.key)} ${badge}\n` +
     `📆 ${fmtDate(event.start_date)} ~ ${fmtDate(event.end_date)}`;
 
   const section = new SectionBuilder().addTextDisplayComponents(
@@ -150,18 +152,21 @@ export function buildEmptyContainer() {
 export function buildAlertContainer({ event }) {
   const container = new ContainerBuilder().setAccentColor(COLORS.ALERT);
   const meta = categoryMeta(event);
-  const { endTag } = formatDday(event.end_date);
+  const { badge, endTag } = formatDday(event.end_date);
   const nowUnix = Math.floor(Date.now() / 1000);
 
   container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`## ⚠️ **종료 임박** ⚠️`),
+    new TextDisplayBuilder().setContent(`## ${badge}`),
   );
   container.addSeparatorComponents(new SeparatorBuilder());
 
+  const titleLine = event.url
+    ? `### ${emojiTag(meta.key)} [${event.title}](${event.url})`
+    : `### ${emojiTag(meta.key)} ${event.title}`;
   const sectionBody = [
-    endTag,
-    `### ${emojiTag(meta.key)} ${event.title}`,
+    titleLine,
     `📆 ${fmtDate(event.start_date)} ~ ${fmtDate(event.end_date)}`,
+    endTag,
   ]
     .filter(Boolean)
     .join("\n");
@@ -175,27 +180,25 @@ export function buildAlertContainer({ event }) {
         .setURL(event.image_url)
         .setDescription(event.title),
     );
-  } else {
+  } else if (event.url) {
     section.setButtonAccessory(
       new ButtonBuilder()
         .setURL(event.url)
         .setLabel("　")
         .setStyle(ButtonStyle.Link),
     );
+  } else {
+    section.setButtonAccessory(
+      new ButtonBuilder()
+        .setCustomId(`noop:${event.id}`)
+        .setLabel("　")
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(true),
+    );
   }
   container.addSectionComponents(section);
 
   container.addSeparatorComponents(new SeparatorBuilder());
-
-  if (event.url) {
-    const linkRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setURL(event.url)
-        .setLabel("🔗 상세보기")
-        .setStyle(ButtonStyle.Link),
-    );
-    container.addActionRowComponents(linkRow);
-  }
 
   container.addTextDisplayComponents(
     new TextDisplayBuilder().setContent(
