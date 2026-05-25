@@ -44,7 +44,9 @@ export function toIsoDate(str) {
 function absUrl(href, baseUrl) {
   if (!href) return null;
   try {
-    return new URL(href, baseUrl).href;
+    const u = new URL(href, baseUrl);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    return u.href;
   } catch {
     return null;
   }
@@ -258,6 +260,41 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       'S-T7 relative URL absolutization',
       !!ok,
       ev ? `url=${ev.url} image_url=${ev.image_url}` : 'no event parsed'
+    );
+  }
+
+  // S-T8: non-http(s) URL schemes are rejected (javascript:, data:, file:)
+  {
+    const syntheticHostile = `
+      <ul class="banner_list event">
+        <li>
+          <a href="javascript:alert(1)">
+            <span class="title"><span class="txt">XSS attempt</span></span>
+            <span class="date">26-04-01 ~ 26-04-30</span>
+          </a>
+        </li>
+        <li>
+          <a href="data:text/html,<script>alert(1)</script>">
+            <span class="title"><span class="txt">data scheme</span></span>
+            <span class="date">26-04-01 ~ 26-04-30</span>
+          </a>
+        </li>
+        <li>
+          <a href="/news/event/view/777?category=1">
+            <span class="title"><span class="txt">legit</span></span>
+            <span class="date">26-04-01 ~ 26-04-30</span>
+          </a>
+        </li>
+      </ul>`;
+    const events = parsePage(syntheticHostile, BASE_URL);
+    const ok =
+      events.length === 1 &&
+      events[0].title === 'legit' &&
+      events[0].url.startsWith('https://');
+    record(
+      'S-T8 non-http(s) URL rejected',
+      ok,
+      JSON.stringify(events.map((e) => ({ title: e.title, url: e.url })))
     );
   }
 
