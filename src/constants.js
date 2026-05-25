@@ -1,5 +1,6 @@
 export const BASE_URL = 'https://www.ff14.co.kr';
 export const EVENT_LIST_URL = `${BASE_URL}/news/event?category=1`;
+export const ENDED_EVENT_LIST_URL = `${BASE_URL}/news/event?category=2`;
 
 export const CATEGORY_KEYS = ['seasonal', 'limited', 'permanent'];
 

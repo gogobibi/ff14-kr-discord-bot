@@ -4,7 +4,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BASE_URL, EVENT_LIST_URL } from './constants.js';
+import { BASE_URL, EVENT_LIST_URL, ENDED_EVENT_LIST_URL } from './constants.js';
 
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
@@ -114,22 +114,27 @@ export function parsePage(html, baseUrl) {
   return results;
 }
 
-export async function scrapeEvents() {
+export async function scrapeEvents({ includeEnded = false } = {}) {
   const all = [];
   const seen = new Set();
-  for (const page of [1, 2, 3]) {
-    const url = `${EVENT_LIST_URL}&page=${page}`;
-    try {
-      const html = await fetchHtml(url);
-      const events = parsePage(html, BASE_URL);
-      for (const ev of events) {
-        if (!seen.has(ev.id)) {
-          seen.add(ev.id);
-          all.push(ev);
+  const baseUrls = includeEnded
+    ? [EVENT_LIST_URL, ENDED_EVENT_LIST_URL]
+    : [EVENT_LIST_URL];
+  for (const baseUrl of baseUrls) {
+    for (const page of [1, 2, 3]) {
+      const url = `${baseUrl}&page=${page}`;
+      try {
+        const html = await fetchHtml(url);
+        const events = parsePage(html, BASE_URL);
+        for (const ev of events) {
+          if (!seen.has(ev.id)) {
+            seen.add(ev.id);
+            all.push(ev);
+          }
         }
+      } catch (err) {
+        console.warn(`[scraper] ${baseUrl} page ${page} failed:`, err?.message || err);
       }
-    } catch (err) {
-      console.warn(`[scraper] page ${page} failed:`, err?.message || err);
     }
   }
   return all;

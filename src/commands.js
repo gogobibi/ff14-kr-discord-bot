@@ -35,12 +35,23 @@ function buildContainerForFilter(filter) {
 async function respondError(interaction, content) {
   const payload = { content, flags: MessageFlags.Ephemeral };
   try {
-    if (interaction.deferred || interaction.replied) {
+    if (interaction.deferred) {
+      await interaction.editReply(payload);
+    } else if (interaction.replied) {
       await interaction.followUp(payload);
     } else {
       await interaction.reply(payload);
     }
   } catch (err) {
+    if (err?.code === 40060) {
+      try {
+        await interaction.followUp(payload);
+        return;
+      } catch (followUpErr) {
+        console.error('Failed to send error response (followUp fallback):', followUpErr);
+        return;
+      }
+    }
     console.error('Failed to send error response:', err);
   }
 }

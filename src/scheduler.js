@@ -9,18 +9,20 @@ import {
   getAllGuildConfigs,
   markNotified,
   updateEventClassification,
+  getLastEventUpdate,
 } from './storage.js';
 import { buildAlertContainer } from './ui.js';
 
 const TZ = { timezone: 'Asia/Seoul' };
+const INITIAL_STALE_HOURS = 6;
 
 let isScraping = false;
 
-async function runScrape() {
+async function runScrape(options = {}) {
   if (isScraping) return { skipped: true };
   isScraping = true;
   try {
-    const events = await scrapeEvents();
+    const events = await scrapeEvents(options);
     let upserts = 0;
     for (const e of events) {
       upsertEvent(e);
@@ -90,9 +92,33 @@ async function notifyJob(client) {
   }
 }
 
+async function initialScrapeIfNeeded() {
+  const last = getLastEventUpdate();
+  if (last === null) {
+    console.log('[scheduler] DB 비어있음 — 초기 스크래핑 (진행중 + 이전)');
+    const r = await runScrape({ includeEnded: true });
+    if (!r.skipped) {
+      console.log(`[스크래핑:초기] 총 ${r.total}, upsert ${r.upserts}, 분류 ${r.classified}`);
+    }
+    return;
+  }
+  const lastMs = new Date(last.replace(' ', 'T') + 'Z').getTime();
+  const ageHours = (Date.now() - lastMs) / 1000 / 3600;
+  if (ageHours >= INITIAL_STALE_HOURS) {
+    console.log(`[scheduler] 마지막 업데이트 ${ageHours.toFixed(1)}h 전 — 부팅 스크래핑`);
+    const r = await runScrape();
+    if (!r.skipped) {
+      console.log(`[스크래핑:부팅] 총 ${r.total}, upsert ${r.upserts}, 분류 ${r.classified}`);
+    }
+  }
+}
+
 export function startScheduler(client) {
   cron.schedule('45 17 * * *', scrapeJob, TZ);
   cron.schedule('0 20 * * *', scrapeJob, TZ);
   cron.schedule('0 9 * * *', () => notifyJob(client), TZ);
   console.log('[scheduler] cron 시작 (KST): 17:45·20:00 스크래핑 + 09:00 알림');
+  initialScrapeIfNeeded().catch((err) =>
+    console.error('[scheduler] 초기 스크래핑 실패:', err),
+  );
 }
