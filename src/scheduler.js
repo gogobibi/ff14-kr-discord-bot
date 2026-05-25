@@ -82,6 +82,7 @@ async function notifyJob(client, { fetchEvents, kind, label }) {
       try {
         const channel = await client.channels.fetch(notify_channel_id);
         for (const event of endingEvents) {
+          if (event.is_welcome) continue;
           if (hasNotified(guild_id, event.id, kind)) continue;
           const container = buildAlertContainer({ event });
           await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });

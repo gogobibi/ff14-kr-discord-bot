@@ -145,22 +145,21 @@ export async function handleSetNotifyChannel(interaction) {
     setNotifyChannel(interaction.guildId, channel.id);
 
     // D-0 (오늘 종료) 이벤트는 다음 cron 까지 기다리면 놓치므로 즉시 catch-up
-    let catchUpCount = 0;
+    // 신규·복귀 혜택은 catch-up 제외 — 길드 일반 알림에는 부적절
     for (const event of getEventsEndingToday()) {
+      if (event.is_welcome) continue;
       if (hasNotified(interaction.guildId, event.id, 'd0')) continue;
       try {
         const container = buildAlertContainer({ event });
         await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
         markNotified(interaction.guildId, event.id, 'd0');
-        catchUpCount++;
       } catch (err) {
         console.warn(`[알림:catch-up] event ${event.id} 발송 실패:`, err.message);
       }
     }
 
-    const suffix = catchUpCount > 0 ? ` (오늘 종료 ${catchUpCount}건 즉시 발송)` : '';
     await interaction.reply({
-      content: `✅ 알림 채널을 <#${channel.id}>로 설정했습니다.${suffix}`,
+      content: `✅ 알림 채널을 <#${channel.id}>로 설정했습니다.`,
     });
   } catch (err) {
     console.error('handleSetNotifyChannel error:', err);
