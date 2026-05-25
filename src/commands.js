@@ -6,7 +6,6 @@ import {
   getPastEvents,
   setNotifyChannel,
   getEventsEndingToday,
-  getEventsEndingTomorrow,
   hasNotified,
   markNotified,
 } from './storage.js';
@@ -145,25 +144,21 @@ export async function handleSetNotifyChannel(interaction) {
 
     setNotifyChannel(interaction.guildId, channel.id);
 
-    // 이 길드가 아직 못 받은 D-1·D-0 임박 이벤트가 있으면 즉시 catch-up 발송
-    const catchUpItems = [
-      ...getEventsEndingToday().map((event) => ({ event, kind: 'd0' })),
-      ...getEventsEndingTomorrow().map((event) => ({ event, kind: 'd1' })),
-    ];
+    // D-0 (오늘 종료) 이벤트는 다음 cron 까지 기다리면 놓치므로 즉시 catch-up
     let catchUpCount = 0;
-    for (const { event, kind } of catchUpItems) {
-      if (hasNotified(interaction.guildId, event.id, kind)) continue;
+    for (const event of getEventsEndingToday()) {
+      if (hasNotified(interaction.guildId, event.id, 'd0')) continue;
       try {
         const container = buildAlertContainer({ event });
         await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        markNotified(interaction.guildId, event.id, kind);
+        markNotified(interaction.guildId, event.id, 'd0');
         catchUpCount++;
       } catch (err) {
         console.warn(`[알림:catch-up] event ${event.id} 발송 실패:`, err.message);
       }
     }
 
-    const suffix = catchUpCount > 0 ? ` (D-1·D-0 임박 이벤트 ${catchUpCount}건 즉시 발송)` : '';
+    const suffix = catchUpCount > 0 ? ` (오늘 종료 ${catchUpCount}건 즉시 발송)` : '';
     await interaction.reply({
       content: `✅ 알림 채널을 <#${channel.id}>로 설정했습니다.${suffix}`,
     });
