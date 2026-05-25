@@ -4,7 +4,9 @@
 
 ## 0. VM 가정
 
-- Oracle Cloud Free Tier VM (예: VM.Standard.A1.Flex 1OCPU/6GB, OL9)
+- Oracle Cloud Free Tier VM (OL9). 권장 shape:
+  - **VM.Standard.A1.Flex** (ARM, 1OCPU / 6GB RAM) — 여유로움. Free Tier 한도 안에서 가능하면 이걸 추천
+  - **VM.Standard.E2.1.Micro** (x86, 1OCPU / 1GB RAM) — A1.Flex 자원이 동나서 못 만들 때 fallback. **반드시 1번에서 swap 추가 필요** (dnf / podman build 가 OOM kill 됨)
 - SSH 사용자: `opc` (Oracle Linux 기본)
 - 봇은 outbound only — Security List / Firewall ingress 변경 불요
 
@@ -13,8 +15,31 @@
 ```bash
 # SSH 접속
 ssh opc@<vm-public-ip>
+```
 
-# Podman + compose plugin (OL9 기본 podman 설치되어 있음)
+### 1-A. (E2.1.Micro 한정) Swap 2GB 추가
+
+1GB RAM 인스턴스는 `dnf install` 도중 OOM kill 로 죽는다. **podman 설치 전에 반드시 실행**:
+
+```bash
+free -h                           # 현재 RAM/Swap 확인. Swap 이 0 이면 아래 진행
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab   # 재부팅 후에도 유지
+free -h                           # Swap: 2.0Gi 확인
+
+# 직전 dnf 가 죽었다면 메타데이터 캐시 정리 후 재시도
+sudo dnf clean all
+```
+
+A1.Flex (6GB) 사용 중이면 이 단계 스킵.
+
+### 1-B. Podman / compose / git 설치
+
+```bash
+# OL9 기본 repo 에서 설치
 sudo dnf install -y podman podman-compose git
 podman --version
 podman compose version           # 또는 podman-compose --version
@@ -25,6 +50,8 @@ sudo loginctl enable-linger opc
 # 디렉토리
 mkdir -p ~/services
 ```
+
+설치 중 또 `Killed` 가 뜨면 swap 이 충분히 잡혔는지 (`free -h`) 다시 확인하고, 한 패키지씩 분리 설치 (`sudo dnf install -y podman` → `sudo dnf install -y podman-compose` → `sudo dnf install -y git`).
 
 ## 2. 봇 코드 배치
 
@@ -146,6 +173,7 @@ systemctl --user enable --now <another-bot>.service
 
 ## 트러블슈팅
 
+- **`dnf install` 또는 `podman build` 가 `Killed` 로 죽음**: 메모리 부족 (OOM kill). 1GB VM (E2.1.Micro) 이면 [1-A](#1-a-e21micro-한정-swap-2gb-추가) 의 swap 2GB 추가 절차 실행 후 재시도. `free -h` 로 Swap 잡혔는지 먼저 확인.
 - **`podman compose` 명령 못 찾음**: `sudo dnf install -y podman-compose` 또는 `pip install podman-compose`. OL9 의 podman 4.x 부터는 `podman compose` 서브명령 지원.
 - **`data/events.db` permission denied**: rootless podman 은 user namespace 매핑. `chown -R 1000:1000 data` (컨테이너의 node user uid=1000) 또는 `podman unshare chown 1000:1000 data`.
 - **better-sqlite3 빌드 실패**: Dockerfile 의 build stage 가 `python3 make g++` 설치. 알파인 이미지 변경 시에도 이 셋 유지.
