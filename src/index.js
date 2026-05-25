@@ -4,6 +4,7 @@ import {
   initDB,
   ensureGuildConfig,
   removeGuildConfig,
+  pruneStaleGuildConfigs,
 } from './storage.js';
 import {
   handleEventCommand,
@@ -18,10 +19,15 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 client.once(Events.ClientReady, readyClient => {
   console.log(`✅ 로그인: ${readyClient.user.tag}`);
-  for (const [id] of readyClient.guilds.cache) {
+  const activeIds = new Set(readyClient.guilds.cache.keys());
+  for (const id of activeIds) {
     ensureGuildConfig(id);
   }
-  console.log(`[guild] 참여 길드 ${readyClient.guilds.cache.size}개 동기화 완료`);
+  const pruned = pruneStaleGuildConfigs(activeIds);
+  if (pruned.length > 0) {
+    console.log(`[guild] stale guild_config ${pruned.length}건 정리: ${pruned.join(', ')}`);
+  }
+  console.log(`[guild] 참여 길드 ${activeIds.size}개 동기화 완료`);
   startScheduler(readyClient);
 });
 

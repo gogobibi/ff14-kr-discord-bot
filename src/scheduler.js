@@ -8,6 +8,7 @@ import {
   getEventsEndingToday,
   getEventsEndingTomorrow,
   getAllGuildConfigs,
+  hasNotified,
   markNotified,
   updateEventClassification,
   getLastEventUpdate,
@@ -71,24 +72,29 @@ export async function runScrapeNow() {
   return runScrape();
 }
 
-async function notifyJob(client, { fetchEvents, label }) {
+async function notifyJob(client, { fetchEvents, kind, label }) {
   try {
     const endingEvents = fetchEvents();
     if (endingEvents.length === 0) return;
     const guildConfigs = getAllGuildConfigs();
+    let sentCount = 0;
     for (const { guild_id, notify_channel_id } of guildConfigs) {
       try {
         const channel = await client.channels.fetch(notify_channel_id);
         for (const event of endingEvents) {
+          if (hasNotified(guild_id, event.id, kind)) continue;
           const container = buildAlertContainer({ event });
           await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+          markNotified(guild_id, event.id, kind);
+          sentCount++;
         }
       } catch (err) {
         console.warn(`[알림:${label}] 길드 ${guild_id} 실패:`, err.message);
       }
     }
-    for (const event of endingEvents) markNotified(event.id);
-    console.log(`[알림:${label}] ${endingEvents.length}건 발송`);
+    if (sentCount > 0) {
+      console.log(`[알림:${label}] ${sentCount}건 발송`);
+    }
   } catch (err) {
     console.error(`[알림:${label}] 실패:`, err);
   }
@@ -122,6 +128,7 @@ export function startScheduler(client) {
     '0 19 * * *',
     () => notifyJob(client, {
       fetchEvents: getEventsEndingTomorrow,
+      kind: 'd1',
       label: 'D-1',
     }),
     TZ,
@@ -130,6 +137,7 @@ export function startScheduler(client) {
     '0 9 * * *',
     () => notifyJob(client, {
       fetchEvents: getEventsEndingToday,
+      kind: 'd0',
       label: 'D-0',
     }),
     TZ,

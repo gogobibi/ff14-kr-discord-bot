@@ -24,6 +24,13 @@ const SCHEMA = `
     added_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
   );
+  CREATE TABLE IF NOT EXISTS notification_log (
+    guild_id TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    sent_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (guild_id, event_id, kind)
+  );
 `;
 
 let db;
@@ -36,6 +43,21 @@ function migrate() {
     db.exec(
       "UPDATE events SET is_welcome = 1 WHERE title LIKE '%복귀%' OR title LIKE '%신규%'",
     );
+  }
+  // 글로벌 flag (notified_1day, notified_d0) → 길드별 ledger backfill. 멱등 (PK 충돌 시 IGNORE).
+  db.exec(`
+    INSERT OR IGNORE INTO notification_log (guild_id, event_id, kind)
+    SELECT gc.guild_id, e.id, 'd1'
+    FROM events e CROSS JOIN guild_config gc
+    WHERE e.notified_1day = 1 AND gc.notify_channel_id IS NOT NULL
+  `);
+  if (cols.find((c) => c.name === 'notified_d0')) {
+    db.exec(`
+      INSERT OR IGNORE INTO notification_log (guild_id, event_id, kind)
+      SELECT gc.guild_id, e.id, 'd0'
+      FROM events e CROSS JOIN guild_config gc
+      WHERE e.notified_d0 = 1 AND gc.notify_channel_id IS NOT NULL
+    `);
   }
 }
 
@@ -159,7 +181,7 @@ export function getEventsEndingToday() {
   ensureDB();
   const today = todayKST();
   return db
-    .prepare('SELECT * FROM events WHERE end_date = ? AND notified_1day = 0')
+    .prepare('SELECT * FROM events WHERE end_date = ?')
     .all(today);
 }
 
@@ -167,15 +189,28 @@ export function getEventsEndingTomorrow() {
   ensureDB();
   const tomorrow = tomorrowKST();
   return db
-    .prepare('SELECT * FROM events WHERE end_date = ? AND notified_1day = 0')
+    .prepare('SELECT * FROM events WHERE end_date = ?')
     .all(tomorrow);
 }
 
-export function markNotified(id) {
+export function hasNotified(guild_id, event_id, kind) {
+  ensureDB();
+  const row = db
+    .prepare(
+      'SELECT 1 FROM notification_log WHERE guild_id = ? AND event_id = ? AND kind = ?',
+    )
+    .get(guild_id, event_id, kind);
+  return !!row;
+}
+
+export function markNotified(guild_id, event_id, kind) {
   ensureDB();
   return db
-    .prepare('UPDATE events SET notified_1day = 1 WHERE id = ?')
-    .run(id);
+    .prepare(
+      `INSERT OR IGNORE INTO notification_log (guild_id, event_id, kind, sent_at)
+       VALUES (?, ?, ?, datetime('now'))`,
+    )
+    .run(guild_id, event_id, kind);
 }
 
 export function upsertGuildConfig({ guild_id, notify_channel_id }) {
@@ -229,6 +264,18 @@ export function getAllGuildConfigs() {
 export function removeGuildConfig(guild_id) {
   ensureDB();
   return db.prepare('DELETE FROM guild_config WHERE guild_id = ?').run(guild_id);
+}
+
+export function pruneStaleGuildConfigs(activeGuildIds) {
+  ensureDB();
+  const stored = db
+    .prepare('SELECT guild_id FROM guild_config')
+    .all()
+    .map((r) => r.guild_id);
+  const stale = stored.filter((id) => !activeGuildIds.has(id));
+  const stmt = db.prepare('DELETE FROM guild_config WHERE guild_id = ?');
+  for (const id of stale) stmt.run(id);
+  return stale;
 }
 
 export function updateEventClassification(id, category, isWelcome) {
@@ -400,40 +447,49 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     check(false, 'D-T7', e.message);
   }
 
-  // D-T8a/b: getEventsEndingToday / Tomorrow — end_date 매칭 AND notified_1day=0
+  // D-T8a/b: getEventsEndingToday / Tomorrow — 단순 end_date 매칭 (ledger 와 무관)
   try {
     resetDB();
     const today = todayKST();
     const tomorrow = tomorrowKST();
     const yesterday = addDaysKST(today, -1);
     const dayAfter = addDaysKST(today, 2);
-    upsertEvent(sample({ id: 'today-open', start_date: yesterday, end_date: today }));
-    upsertEvent(sample({ id: 'today-notified', start_date: yesterday, end_date: today }));
-    db.prepare("UPDATE events SET notified_1day = 1 WHERE id = 'today-notified'").run();
-    upsertEvent(sample({ id: 'tmr-open', start_date: today, end_date: tomorrow }));
-    upsertEvent(sample({ id: 'tmr-notified', start_date: today, end_date: tomorrow }));
-    db.prepare("UPDATE events SET notified_1day = 1 WHERE id = 'tmr-notified'").run();
+    upsertEvent(sample({ id: 'today-a', start_date: yesterday, end_date: today }));
+    upsertEvent(sample({ id: 'today-b', start_date: yesterday, end_date: today }));
+    upsertEvent(sample({ id: 'tmr-a', start_date: today, end_date: tomorrow }));
+    upsertEvent(sample({ id: 'tmr-b', start_date: today, end_date: tomorrow }));
     upsertEvent(sample({ id: 'after', start_date: today, end_date: dayAfter }));
     upsertEvent(sample({ id: 'yday', start_date: yesterday, end_date: yesterday }));
 
     const todayIds = new Set(getEventsEndingToday().map((e) => e.id));
-    const okToday = todayIds.size === 1 && todayIds.has('today-open');
+    const okToday = todayIds.size === 2 && todayIds.has('today-a') && todayIds.has('today-b');
     check(okToday, 'D-T8a getEventsEndingToday', okToday ? '' : JSON.stringify([...todayIds]));
 
     const tmrIds = new Set(getEventsEndingTomorrow().map((e) => e.id));
-    const okTmr = tmrIds.size === 1 && tmrIds.has('tmr-open');
+    const okTmr = tmrIds.size === 2 && tmrIds.has('tmr-a') && tmrIds.has('tmr-b');
     check(okTmr, 'D-T8b getEventsEndingTomorrow', okTmr ? '' : JSON.stringify([...tmrIds]));
   } catch (e) {
     check(false, 'D-T8', e.message);
   }
 
-  // D-T9: markNotified sets notified_1day = 1
+  // D-T9: hasNotified / markNotified — guild-scoped ledger, 멱등
   try {
     resetDB();
     upsertEvent(sample({ id: 'm1' }));
-    markNotified('m1');
-    const got = getEvent('m1');
-    check(got.notified_1day === 1, 'D-T9', `notified_1day=${got.notified_1day}`);
+    check(!hasNotified('g1', 'm1', 'd1'), 'D-T9a hasNotified initial false');
+    markNotified('g1', 'm1', 'd1');
+    check(hasNotified('g1', 'm1', 'd1'), 'D-T9b after mark true');
+    // 다른 guild / 다른 kind 는 false 그대로
+    check(!hasNotified('g2', 'm1', 'd1'), 'D-T9c other guild still false');
+    check(!hasNotified('g1', 'm1', 'd0'), 'D-T9d other kind still false');
+    // 중복 호출 멱등 (PK 충돌)
+    markNotified('g1', 'm1', 'd1');
+    const n = db
+      .prepare(
+        "SELECT COUNT(*) AS n FROM notification_log WHERE guild_id='g1' AND event_id='m1' AND kind='d1'",
+      )
+      .get();
+    check(n.n === 1, 'D-T9e markNotified idempotent', `n=${n.n}`);
   } catch (e) {
     check(false, 'D-T9', e.message);
   }
@@ -669,6 +725,79 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     check(ok, 'D-T22', ok ? '' : JSON.stringify({ a, b }));
   } catch (e) {
     check(false, 'D-T22', e.message);
+  }
+
+  // D-T23: migrate backfill — 글로벌 notified_1day=1 + 알림 등록 길드 → ledger
+  try {
+    if (db) {
+      db.close();
+      db = undefined;
+    }
+    for (const suffix of ['', '-wal', '-shm']) {
+      const p = TEST_DB + suffix;
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    }
+    // Pre-migration DB: events 에 notified_1day=1 두 건, guild_config 에 알림 등록 1개·미등록 1개
+    const tmp = new Database(TEST_DB);
+    tmp.exec(`
+      CREATE TABLE events (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        url TEXT,
+        image_url TEXT,
+        category TEXT,
+        notified_1day INTEGER DEFAULT 0,
+        updated_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE TABLE guild_config (
+        guild_id TEXT PRIMARY KEY,
+        notify_channel_id TEXT,
+        added_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+      );
+    `);
+    tmp.prepare("INSERT INTO events (id, title, start_date, end_date, notified_1day) VALUES ('e-sent', 'sent', '2026-04-01', '2026-04-30', 1)").run();
+    tmp.prepare("INSERT INTO events (id, title, start_date, end_date, notified_1day) VALUES ('e-fresh', 'fresh', '2026-04-01', '2026-04-30', 0)").run();
+    tmp.prepare("INSERT INTO guild_config (guild_id, notify_channel_id) VALUES ('g-notify', 'c1')").run();
+    tmp.prepare("INSERT INTO guild_config (guild_id, notify_channel_id) VALUES ('g-silent', NULL)").run();
+    tmp.close();
+
+    initDB(TEST_DB);
+    const backfilled = hasNotified('g-notify', 'e-sent', 'd1');
+    const freshSkipped = !hasNotified('g-notify', 'e-fresh', 'd1');
+    const silentSkipped = !hasNotified('g-silent', 'e-sent', 'd1');
+    // 재호출 멱등: 다시 migrate 호출해도 행 수 변화 없어야 함
+    const before = db.prepare('SELECT COUNT(*) AS n FROM notification_log').get().n;
+    migrate();
+    const after = db.prepare('SELECT COUNT(*) AS n FROM notification_log').get().n;
+    const ok = backfilled && freshSkipped && silentSkipped && before === after && before === 1;
+    check(ok, 'D-T23 migrate backfill', ok ? '' : `backfilled=${backfilled} fresh=${freshSkipped} silent=${silentSkipped} before=${before} after=${after}`);
+  } catch (e) {
+    check(false, 'D-T23', e.message);
+  }
+
+  // D-T24: pruneStaleGuildConfigs — active 에 없는 guild_config 만 삭제, notification_log 보존
+  try {
+    resetDB();
+    upsertGuildConfig({ guild_id: 'g-active', notify_channel_id: 'c1' });
+    upsertGuildConfig({ guild_id: 'g-stale', notify_channel_id: 'c2' });
+    upsertEvent(sample({ id: 'e1' }));
+    markNotified('g-active', 'e1', 'd1');
+    markNotified('g-stale', 'e1', 'd1');
+
+    const removed = pruneStaleGuildConfigs(new Set(['g-active']));
+    const okRemovedList = removed.length === 1 && removed[0] === 'g-stale';
+    const activeKept = !!getGuildConfig('g-active');
+    const staleGone = getGuildConfig('g-stale') === undefined;
+    // notification_log 는 보존 — 두 행 모두 그대로
+    const logRows = db.prepare('SELECT COUNT(*) AS n FROM notification_log').get().n;
+    const ok = okRemovedList && activeKept && staleGone && logRows === 2;
+    check(ok, 'D-T24 pruneStaleGuildConfigs', ok ? '' : `removed=${JSON.stringify(removed)} active=${activeKept} stale=${staleGone} log=${logRows}`);
+  } catch (e) {
+    check(false, 'D-T24', e.message);
   }
 
   // D-T18: getPastEvents — end_date < today, ordered by end_date DESC
