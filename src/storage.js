@@ -200,9 +200,13 @@ export function setNotifyChannel(guild_id, channel_id) {
   ensureDB();
   return db
     .prepare(
-      `UPDATE guild_config SET notify_channel_id = ?, updated_at = datetime('now') WHERE guild_id = ?`
+      `INSERT INTO guild_config (guild_id, notify_channel_id, added_at, updated_at)
+       VALUES (?, ?, datetime('now'), datetime('now'))
+       ON CONFLICT(guild_id) DO UPDATE SET
+         notify_channel_id = excluded.notify_channel_id,
+         updated_at = datetime('now')`
     )
-    .run(channel_id, guild_id);
+    .run(guild_id, channel_id);
 }
 
 export function getGuildConfig(guild_id) {
@@ -492,6 +496,22 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     check(ok, 'D-T13', ok ? '' : JSON.stringify(got));
   } catch (e) {
     check(false, 'D-T13', e.message);
+  }
+
+  // D-T13b: setNotifyChannel creates guild_config row if missing
+  try {
+    resetDB();
+    setNotifyChannel('g-missing', 'c-created');
+    const got = getGuildConfig('g-missing');
+    const ok =
+      got &&
+      got.guild_id === 'g-missing' &&
+      got.notify_channel_id === 'c-created' &&
+      got.added_at &&
+      got.updated_at;
+    check(ok, 'D-T13b', ok ? '' : JSON.stringify(got));
+  } catch (e) {
+    check(false, 'D-T13b', e.message);
   }
 
   // D-T14: guild A(notify=null), B(notify=value) → getAllGuildConfigs에는 B만

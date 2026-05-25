@@ -33,7 +33,7 @@ function buildContainerForFilter(filter) {
 }
 
 async function respondError(interaction, content) {
-  const payload = { content, ephemeral: true };
+  const payload = { content, flags: MessageFlags.Ephemeral };
   try {
     if (interaction.deferred || interaction.replied) {
       await interaction.followUp(payload);
@@ -69,11 +69,11 @@ export async function handleScrapeNow(interaction) {
   if (!devGuildId || interaction.guildId !== devGuildId) {
     return interaction.reply({
       content: '⚠️ 이 명령은 개발 서버에서만 사용 가능합니다.',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
   try {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const result = await runScrapeNow();
     if (result.skipped) {
       await interaction.editReply('⏳ 이미 스크래핑이 실행 중입니다. 잠시 후 다시 시도해주세요.');
@@ -93,7 +93,7 @@ export async function handleSetNotifyChannel(interaction) {
     if (!interaction.inGuild()) {
       return interaction.reply({
         content: '서버에서만 사용 가능합니다.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -101,11 +101,12 @@ export async function handleSetNotifyChannel(interaction) {
     if (!channel) {
       return interaction.reply({
         content: '⚠️ 채널을 찾을 수 없습니다.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
-    const me = interaction.guild.members.me;
+    const guild = interaction.guild ?? await interaction.client.guilds.fetch(interaction.guildId);
+    const me = guild.members.me ?? await guild.members.fetchMe();
     const perms = channel.permissionsFor(me);
     const required = [
       { flag: PermissionsBitField.Flags.ViewChannel, label: '채널 보기' },
@@ -118,7 +119,7 @@ export async function handleSetNotifyChannel(interaction) {
     if (missing.length > 0) {
       return interaction.reply({
         content: `⚠️ <#${channel.id}> 채널에서 봇 권한이 부족합니다: ${missing.join(', ')}`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
