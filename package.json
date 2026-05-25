@@ -8,7 +8,13 @@
   "scripts": {
     "start": "node src/index.js",
     "deploy:commands": "node src/deploy-commands.js",
-    "deploy:emojis": "node src/deploy-emojis.js"
+    "test:storage": "node src/storage.js",
+    "test:ui": "node src/ui.js",
+    "test:scraper": "node src/scraper.js",
+    "test:classify": "node src/classifier.js",
+    "test:contract": "node scripts/contract-test.js",
+    "test:notify": "node scripts/test-notify.js",
+    "test:dday": "node scripts/test-dday.js"
   },
   "repository": {
     "type": "git",

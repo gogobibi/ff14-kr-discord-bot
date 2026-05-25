@@ -31,9 +31,21 @@ if (argEventId) {
   console.log(`이벤트 자동 선택: ${event.id} · ${event.title} (종료 ${event.end_date})`);
 }
 
-const guildConfigs = getAllGuildConfigs();
+const testGuildId = process.env.TEST_GUILD_ID;
+if (!testGuildId) {
+  console.error(
+    '⛔ TEST_GUILD_ID 환경변수가 필요합니다. 실수로 전체 길드에 스팸 전송하는 것을 막기 위함입니다.',
+  );
+  console.error('   사용법: TEST_GUILD_ID=<guild_id> node scripts/test-notify.js [eventId]');
+  process.exit(1);
+}
+
+const allConfigs = getAllGuildConfigs();
+const guildConfigs = allConfigs.filter((c) => c.guild_id === testGuildId);
 if (guildConfigs.length === 0) {
-  console.error('알림 채널이 설정된 길드가 없음. /이벤트-알림채널 먼저 실행.');
+  console.error(
+    `⛔ guild_id=${testGuildId} 에 해당하는 알림 채널 설정이 없음. /이벤트-알림채널 먼저 실행하거나 TEST_GUILD_ID 값을 확인하세요.`,
+  );
   process.exit(1);
 }
 

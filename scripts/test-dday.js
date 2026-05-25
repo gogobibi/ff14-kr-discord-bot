@@ -12,7 +12,10 @@ const cases = [
   { label: '어제 종료 (days=-1)', days: -1 },
   { label: '오늘 종료 (days=0)', days: 0 },
   { label: 'D-1', days: 1 },
+  { label: 'D-2', days: 2 },
   { label: 'D-7', days: 7 },
+  { label: 'D-8 (D-7→D-8 경계)', days: 8 },
+  { label: 'D-30', days: 30 },
   { label: 'D-365 경계', days: 365 },
   { label: '장기 이벤트 (days=400)', days: 400 },
 ];
