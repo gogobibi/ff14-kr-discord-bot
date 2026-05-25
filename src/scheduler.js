@@ -5,7 +5,8 @@ import { classifyEventsBatch } from './classifier.js';
 import {
   upsertEvent,
   getUnclassifiedEvents,
-  getEventsEndingSoon,
+  getEventsEndingToday,
+  getEventsEndingTomorrow,
   getAllGuildConfigs,
   markNotified,
   updateEventClassification,
@@ -70,9 +71,9 @@ export async function runScrapeNow() {
   return runScrape();
 }
 
-async function notifyJob(client) {
+async function notifyJob(client, { fetchEvents, label }) {
   try {
-    const endingEvents = getEventsEndingSoon();
+    const endingEvents = fetchEvents();
     if (endingEvents.length === 0) return;
     const guildConfigs = getAllGuildConfigs();
     for (const { guild_id, notify_channel_id } of guildConfigs) {
@@ -83,12 +84,13 @@ async function notifyJob(client) {
           await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
         }
       } catch (err) {
-        console.warn(`[알림] 길드 ${guild_id} 실패:`, err.message);
+        console.warn(`[알림:${label}] 길드 ${guild_id} 실패:`, err.message);
       }
     }
     for (const event of endingEvents) markNotified(event.id);
+    console.log(`[알림:${label}] ${endingEvents.length}건 발송`);
   } catch (err) {
-    console.error('[알림] 실패:', err);
+    console.error(`[알림:${label}] 실패:`, err);
   }
 }
 
@@ -116,8 +118,23 @@ async function initialScrapeIfNeeded() {
 export function startScheduler(client) {
   cron.schedule('45 17 * * *', scrapeJob, TZ);
   cron.schedule('0 20 * * *', scrapeJob, TZ);
-  cron.schedule('0 9 * * *', () => notifyJob(client), TZ);
-  console.log('[scheduler] cron 시작 (KST): 17:45·20:00 스크래핑 + 09:00 알림');
+  cron.schedule(
+    '0 19 * * *',
+    () => notifyJob(client, {
+      fetchEvents: getEventsEndingTomorrow,
+      label: 'D-1',
+    }),
+    TZ,
+  );
+  cron.schedule(
+    '0 9 * * *',
+    () => notifyJob(client, {
+      fetchEvents: getEventsEndingToday,
+      label: 'D-0',
+    }),
+    TZ,
+  );
+  console.log('[scheduler] cron 시작 (KST): 17:45·20:00 스크래핑 + 19:00 D-1 알림 + 09:00 D-0 알림');
   initialScrapeIfNeeded().catch((err) =>
     console.error('[scheduler] 초기 스크래핑 실패:', err),
   );

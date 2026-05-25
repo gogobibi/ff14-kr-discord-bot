@@ -155,15 +155,20 @@ export function upsertEvent(event) {
     .run(event);
 }
 
-export function getEventsEndingSoon() {
+export function getEventsEndingToday() {
   ensureDB();
   const today = todayKST();
+  return db
+    .prepare('SELECT * FROM events WHERE end_date = ? AND notified_1day = 0')
+    .all(today);
+}
+
+export function getEventsEndingTomorrow() {
+  ensureDB();
   const tomorrow = tomorrowKST();
   return db
-    .prepare(
-      'SELECT * FROM events WHERE end_date IN (?, ?) AND notified_1day = 0'
-    )
-    .all(today, tomorrow);
+    .prepare('SELECT * FROM events WHERE end_date = ? AND notified_1day = 0')
+    .all(tomorrow);
 }
 
 export function markNotified(id) {
@@ -395,7 +400,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     check(false, 'D-T7', e.message);
   }
 
-  // D-T8: getEventsEndingSoon — end IN (today, tomorrow) AND notified_1day=0
+  // D-T8a/b: getEventsEndingToday / Tomorrow — end_date 매칭 AND notified_1day=0
   try {
     resetDB();
     const today = todayKST();
@@ -410,11 +415,14 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     db.prepare("UPDATE events SET notified_1day = 1 WHERE id = 'tmr-notified'").run();
     upsertEvent(sample({ id: 'after', start_date: today, end_date: dayAfter }));
     upsertEvent(sample({ id: 'yday', start_date: yesterday, end_date: yesterday }));
-    const ending = getEventsEndingSoon();
-    const ids = new Set(ending.map((e) => e.id));
-    const ok =
-      ids.size === 2 && ids.has('today-open') && ids.has('tmr-open');
-    check(ok, 'D-T8', ok ? '' : JSON.stringify([...ids]));
+
+    const todayIds = new Set(getEventsEndingToday().map((e) => e.id));
+    const okToday = todayIds.size === 1 && todayIds.has('today-open');
+    check(okToday, 'D-T8a getEventsEndingToday', okToday ? '' : JSON.stringify([...todayIds]));
+
+    const tmrIds = new Set(getEventsEndingTomorrow().map((e) => e.id));
+    const okTmr = tmrIds.size === 1 && tmrIds.has('tmr-open');
+    check(okTmr, 'D-T8b getEventsEndingTomorrow', okTmr ? '' : JSON.stringify([...tmrIds]));
   } catch (e) {
     check(false, 'D-T8', e.message);
   }

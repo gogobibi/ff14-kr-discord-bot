@@ -116,9 +116,14 @@ export async function handleSetNotifyChannel(interaction) {
       });
     }
 
-    const guild = interaction.guild ?? await interaction.client.guilds.fetch(interaction.guildId);
-    const me = guild.members.me ?? await guild.members.fetchMe();
-    const perms = channel.permissionsFor(me);
+    if (!interaction.client.guilds.cache.has(interaction.guildId)) {
+      return interaction.reply({
+        content: '⚠️ 봇이 이 서버에 참여 중인지 확인할 수 없습니다. 봇을 이 서버에 초대한 뒤 다시 시도해주세요.',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+
+    const perms = interaction.appPermissions ?? channel.permissionsFor(interaction.client.user);
     const required = [
       { flag: PermissionsBitField.Flags.ViewChannel, label: '채널 보기' },
       { flag: PermissionsBitField.Flags.SendMessages, label: '메시지 보내기' },
