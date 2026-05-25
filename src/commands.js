@@ -1,25 +1,33 @@
 import { MessageFlags, PermissionsBitField } from 'discord.js';
 import {
-  getActiveEvents,
-  getEventsByCategory,
+  getCurrentEvents,
+  getLongTermEvents,
+  getLastEventUpdate,
+  getPastEvents,
   setNotifyChannel,
 } from './storage.js';
 import { buildEventListContainer, buildEmptyContainer } from './ui.js';
+import { runScrapeNow } from './scheduler.js';
 
 function buildContainerForFilter(filter) {
-  const lastUpdatedUnix = Math.floor(Date.now() / 1000);
+  const lastUpdate = getLastEventUpdate();
+  const lastUpdatedUnix = lastUpdate
+    ? Math.floor(new Date(lastUpdate.replace(' ', 'T') + 'Z').getTime() / 1000)
+    : null;
   let events;
-  if (filter && filter !== 'all') {
-    events = getEventsByCategory(filter);
+  if (filter === 'past') {
+    events = getPastEvents();
+  } else if (filter === 'permanent') {
+    events = getLongTermEvents();
   } else {
-    events = getActiveEvents().filter((e) => e.category !== 'permanent');
+    events = getCurrentEvents();
   }
   if (events.length === 0) {
     return buildEmptyContainer();
   }
   return buildEventListContainer({
     events,
-    filter: filter ?? 'all',
+    filter: filter ?? 'current',
     lastUpdatedUnix,
   });
 }
@@ -41,7 +49,7 @@ export async function handleEventCommand(interaction) {
   try {
     await interaction.deferReply();
     const filterOpt = interaction.options.getString('필터');
-    const filter = filterOpt ?? 'all';
+    const filter = filterOpt ?? 'current';
     const container = buildContainerForFilter(filter);
     await interaction.editReply({
       components: [container],
@@ -53,6 +61,30 @@ export async function handleEventCommand(interaction) {
       interaction,
       '⚠️ 이벤트 목록을 불러오는 중 오류가 발생했습니다.',
     );
+  }
+}
+
+export async function handleScrapeNow(interaction) {
+  const devGuildId = process.env.DEV_GUILD_ID;
+  if (!devGuildId || interaction.guildId !== devGuildId) {
+    return interaction.reply({
+      content: '⚠️ 이 명령은 개발 서버에서만 사용 가능합니다.',
+      ephemeral: true,
+    });
+  }
+  try {
+    await interaction.deferReply({ ephemeral: true });
+    const result = await runScrapeNow();
+    if (result.skipped) {
+      await interaction.editReply('⏳ 이미 스크래핑이 실행 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+    await interaction.editReply(
+      `✅ 스크래핑 완료 — 총 ${result.total}건 / upsert ${result.upserts}건 / 분류 ${result.classified}건`,
+    );
+  } catch (err) {
+    console.error('handleScrapeNow error:', err);
+    await respondError(interaction, '⚠️ 스크래핑 중 오류가 발생했습니다.');
   }
 }
 

@@ -1,146 +1,157 @@
 import 'dotenv/config';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { CATEGORY_KEYS } from './constants.js';
+import { buildBatchPrompt, validateBatchOutput } from './classifiers/prompt.js';
+import { callGemini } from './classifiers/gemini.js';
+import { callDeepSeek } from './classifiers/deepseek.js';
 
-const MODEL_NAME = 'gemini-2.5-flash-lite';
+const PROVIDERS = {
+  gemini: callGemini,
+  deepseek: callDeepSeek,
+};
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const DEFAULT_BATCH_SIZE = 3;
 
-const SYSTEM_PROMPT = `당신은 FF14(파이널판타지14) 한국 서버의 이벤트 분류기입니다.
-
-이벤트 제목과 설명을 읽고 아래 세 카테고리 중 하나로 분류하세요.
-
-- seasonal: 실제 계절·절기·기념일에 맞춰 매년 또는 주기적으로 돌아오는 인게임 축제 이벤트.
-  예) 신생제(설 축제), 별빛축제, 만상절, 해제(여름), 수확제, 장미축제 등 "○○제"·"축제"류.
-- limited: 특정 패치/시즌 한정으로 짧게 열리는 인게임 한정 이벤트·콜라보·캠페인.
-  예) 모그모그★컬렉션, 외부 IP 콜라보 이벤트, 특정 기간 보상 이벤트.
-- permanent: 항상(또는 매우 장기간) 진행되는 상시 혜택·추천인·복귀/신규 지원 시스템.
-  예) 친구 초대 혜택, 신규/복귀 캠페인, 우정 추천 보상, 상시 무료 체험 관련 혜택.
-
-판단 기준:
-1. 계절/절기/기념일 기반이면 seasonal.
-2. 한정 기간이지만 계절성과 무관하면 limited.
-3. 종료일이 매우 멀거나 상시 제공이면 permanent.
-4. 모호하면 설명의 문구에서 "상시/계속/언제든지"는 permanent, "기간 한정/콜라보"는 limited, "축제/제"는 seasonal로 판단.
-
-출력은 반드시 JSON. category는 반드시 "seasonal" | "limited" | "permanent" 중 하나이며, reason은 한국어 한두 문장으로 간결히 작성하세요.`;
-
-function buildPrompt({ title, description }) {
-  const desc = (description || '').trim() || '(설명 없음)';
-  return `${SYSTEM_PROMPT}
-
----
-제목: ${title}
-설명: ${desc}
----
-
-위 이벤트를 분류하고 JSON을 반환하세요.`;
+function getProvider() {
+  const name = (process.env.CLASSIFIER_PROVIDER || 'deepseek').toLowerCase();
+  const fn = PROVIDERS[name];
+  if (!fn) {
+    throw new Error(
+      `Unknown CLASSIFIER_PROVIDER='${name}'. Allowed: ${Object.keys(PROVIDERS).join(', ')}`,
+    );
+  }
+  return { name, fn };
 }
 
-function getModel() {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not set');
-  }
-  const genAI = new GoogleGenerativeAI(apiKey);
-  return genAI.getGenerativeModel({
-    model: MODEL_NAME,
-    generationConfig: {
-      responseMimeType: 'application/json',
-      responseSchema: {
-        type: 'object',
-        properties: {
-          category: { type: 'string', enum: CATEGORY_KEYS },
-          reason: { type: 'string' },
-        },
-        required: ['category', 'reason'],
-      },
-    },
-  });
+function getBatchSize() {
+  const n = Number(process.env.CLASSIFIER_BATCH_SIZE);
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : DEFAULT_BATCH_SIZE;
 }
 
-async function callOnce(model, prompt) {
-  const result = await model.generateContent(prompt);
-  const text = result.response.text();
-  const parsed = JSON.parse(text);
-  if (!CATEGORY_KEYS.includes(parsed.category)) {
-    throw new Error(`invalid category: ${parsed.category}`);
-  }
-  if (typeof parsed.reason !== 'string') {
-    throw new Error('reason missing');
-  }
-  return { category: parsed.category, reason: parsed.reason };
-}
+export async function classifyEventsBatch(events) {
+  if (!Array.isArray(events) || events.length === 0) return [];
 
-export async function classifyEvent({ title, description }) {
-  let model;
+  let provider;
   try {
-    model = getModel();
+    provider = getProvider();
   } catch (err) {
-    return { category: null, reason: 'API error: ' + err.message };
+    return events.map(() => ({
+      category: null,
+      reason: 'config error: ' + err.message,
+    }));
   }
 
-  const prompt = buildPrompt({ title, description });
-
-  try {
-    return await callOnce(model, prompt);
-  } catch (err) {
-    await sleep(2000);
+  const batchSize = getBatchSize();
+  const out = [];
+  for (let i = 0; i < events.length; i += batchSize) {
+    const chunk = events.slice(i, i + batchSize);
+    const prompt = buildBatchPrompt(chunk);
     try {
-      return await callOnce(model, prompt);
-    } catch (err2) {
-      return { category: null, reason: 'API error: ' + err2.message };
+      const parsed = await provider.fn(prompt);
+      const validated = validateBatchOutput(parsed, chunk.length);
+      out.push(...validated);
+    } catch (err) {
+      for (let j = 0; j < chunk.length; j++) {
+        out.push({
+          category: null,
+          reason: `API error (${provider.name}): ${err.message}`,
+        });
+      }
     }
   }
+  return out;
 }
 
 // ---------- ESM 단독 실행 블록 / self-test ----------
 
 if (import.meta.url === `file://${process.argv[1]}`) {
+  const provider = (process.env.CLASSIFIER_PROVIDER || 'deepseek').toLowerCase();
+  const batchSize = getBatchSize();
+  console.log(`[info] CLASSIFIER_PROVIDER=${provider} CLASSIFIER_BATCH_SIZE=${batchSize}`);
+
   const cases = [
     {
       id: 'C-CL1',
       expected: 'seasonal',
+      expectedWelcome: false,
       input: {
         title: '신생제 2026',
         description:
           '에오르제아에 새해의 시작을 알리는 신생제가 돌아왔습니다. 기간 한정 의상과 보상을 획득하세요.',
+        start_date: '2026-03-31',
+        end_date: '2026-04-13',
       },
     },
     {
       id: 'C-CL2',
       expected: 'permanent',
+      expectedWelcome: true,
       input: {
         title: '친구 초대 혜택',
         description:
           '친구를 FF14로 초대하고 초대자·초대된 친구 모두에게 주어지는 상시 보상을 받아보세요.',
+        start_date: '2025-07-15',
+        end_date: '2030-12-31',
       },
     },
     {
       id: 'C-CL3',
       expected: 'limited',
+      expectedWelcome: false,
       input: {
         title: '모그모그★컬렉션',
         description:
           '기간 한정으로 돌아오는 모그모그★컬렉션. 이번 시즌 한정 보상을 수집하세요.',
+        start_date: '2026-04-01',
+        end_date: '2026-04-28',
+      },
+    },
+    {
+      id: 'C-CL4',
+      expected: 'permanent',
+      expectedWelcome: false,
+      input: {
+        title: 'FFXIV × MONSTER HUNTER WILDS',
+        description: '몬스터헌터 와일즈 콜라보 이벤트. 한정 보상을 획득하세요.',
+        start_date: '2025-12-16',
+        end_date: '2030-12-31',
+      },
+    },
+    {
+      id: 'C-CL5',
+      expected: 'limited',
+      expectedWelcome: true,
+      input: {
+        title: '강화된 복귀 혜택',
+        description: '복귀하는 모험가를 위한 기간 한정 혜택. 다양한 성장 보상이 제공됩니다.',
+        start_date: '2026-04-28',
+        end_date: '2026-05-25',
       },
     },
   ];
 
+  const expectedCalls = Math.ceil(cases.length / batchSize);
+  console.log(`[info] ${cases.length} cases → ${expectedCalls} API call(s) at batch=${batchSize}`);
+
+  const t0 = Date.now();
+  const results = await classifyEventsBatch(cases.map((c) => c.input));
+  const elapsed = Date.now() - t0;
+
   let pass = 0;
-  for (const c of cases) {
-    const t0 = Date.now();
-    const out = await classifyEvent(c.input);
-    const elapsed = Date.now() - t0;
-    const match = out.category === c.expected;
+  for (let i = 0; i < cases.length; i++) {
+    const c = cases[i];
+    const out = results[i];
+    const catMatch = out.category === c.expected;
+    const welMatch = out.is_welcome === c.expectedWelcome;
+    const match = catMatch && welMatch;
     if (match) pass++;
     const tag = match ? 'PASS' : 'FAIL';
     console.log(
-      `[${tag}] ${c.id} expected=${c.expected} got=${out.category} (${elapsed}ms)`
+      `[${tag}] ${c.id} expected=${c.expected}/welcome=${c.expectedWelcome} got=${out.category}/welcome=${out.is_welcome}`,
     );
     console.log(`        reason: ${out.reason}`);
   }
 
-  console.log(`\n=== ${pass}/${cases.length} PASS ===`);
+  console.log(
+    `\n=== ${pass}/${cases.length} PASS (provider=${provider}, ${expectedCalls} call(s), ${elapsed}ms) ===`,
+  );
   if (pass < cases.length) process.exit(1);
 }

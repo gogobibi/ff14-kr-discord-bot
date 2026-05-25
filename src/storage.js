@@ -14,6 +14,7 @@ const SCHEMA = `
     url TEXT,
     image_url TEXT,
     category TEXT,
+    is_welcome INTEGER DEFAULT 0,
     notified_1day INTEGER DEFAULT 0,
     updated_at TEXT DEFAULT (datetime('now'))
   );
@@ -27,12 +28,24 @@ const SCHEMA = `
 
 let db;
 
+function migrate() {
+  const cols = db.prepare("PRAGMA table_info(events)").all();
+  if (!cols.find((c) => c.name === 'is_welcome')) {
+    db.exec("ALTER TABLE events ADD COLUMN is_welcome INTEGER DEFAULT 0");
+    // heuristic backfill — LLM 호출 0건. 이후 분류기가 정확한 값으로 갱신.
+    db.exec(
+      "UPDATE events SET is_welcome = 1 WHERE title LIKE '%복귀%' OR title LIKE '%신규%'",
+    );
+  }
+}
+
 export function initDB(dbPath = DEFAULT_DB_PATH) {
   const dir = path.dirname(dbPath);
   if (dir && dir !== '.') fs.mkdirSync(dir, { recursive: true });
   db = new Database(dbPath);
   db.pragma('journal_mode = WAL');
   db.exec(SCHEMA);
+  migrate();
   return db;
 }
 
@@ -84,6 +97,41 @@ export function getEventsByCategory(category) {
     .all(category, today, today);
 }
 
+export function getCurrentEvents() {
+  ensureDB();
+  const today = todayKST();
+  return db
+    .prepare(
+      `SELECT * FROM events
+       WHERE start_date <= ? AND end_date >= ?
+         AND julianday(end_date) - julianday(?) < 365
+         AND (category IS NULL OR category != 'permanent')
+       ORDER BY end_date ASC`
+    )
+    .all(today, today, today);
+}
+
+export function getLongTermEvents() {
+  ensureDB();
+  const today = todayKST();
+  return db
+    .prepare(
+      `SELECT * FROM events
+       WHERE start_date <= ? AND end_date >= ?
+         AND (category = 'permanent' OR julianday(end_date) - julianday(?) >= 365)
+       ORDER BY end_date ASC`
+    )
+    .all(today, today, today);
+}
+
+export function getPastEvents() {
+  ensureDB();
+  const today = todayKST();
+  return db
+    .prepare('SELECT * FROM events WHERE end_date < ? ORDER BY end_date DESC')
+    .all(today);
+}
+
 export function getUnclassifiedEvents() {
   ensureDB();
   return db.prepare('SELECT * FROM events WHERE category IS NULL').all();
@@ -107,12 +155,15 @@ export function upsertEvent(event) {
     .run(event);
 }
 
-export function getEventsEndingTomorrow() {
+export function getEventsEndingSoon() {
   ensureDB();
+  const today = todayKST();
   const tomorrow = tomorrowKST();
   return db
-    .prepare('SELECT * FROM events WHERE end_date = ? AND notified_1day = 0')
-    .all(tomorrow);
+    .prepare(
+      'SELECT * FROM events WHERE end_date IN (?, ?) AND notified_1day = 0'
+    )
+    .all(today, tomorrow);
 }
 
 export function markNotified(id) {
@@ -171,11 +222,19 @@ export function removeGuildConfig(guild_id) {
   return db.prepare('DELETE FROM guild_config WHERE guild_id = ?').run(guild_id);
 }
 
-export function updateEventCategory(id, category) {
+export function updateEventClassification(id, category, isWelcome) {
   ensureDB();
   return db
-    .prepare("UPDATE events SET category = ?, updated_at = datetime('now') WHERE id = ?")
-    .run(category, id);
+    .prepare(
+      "UPDATE events SET category = ?, is_welcome = ?, updated_at = datetime('now') WHERE id = ?",
+    )
+    .run(category, isWelcome ? 1 : 0, id);
+}
+
+export function getLastEventUpdate() {
+  ensureDB();
+  const row = db.prepare('SELECT MAX(updated_at) AS last FROM events').get();
+  return row?.last ?? null;
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -332,19 +391,26 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     check(false, 'D-T7', e.message);
   }
 
-  // D-T8: getEventsEndingTomorrow — only end=tomorrow AND notified_1day=0
+  // D-T8: getEventsEndingSoon — end IN (today, tomorrow) AND notified_1day=0
   try {
     resetDB();
     const today = todayKST();
     const tomorrow = tomorrowKST();
+    const yesterday = addDaysKST(today, -1);
     const dayAfter = addDaysKST(today, 2);
+    upsertEvent(sample({ id: 'today-open', start_date: yesterday, end_date: today }));
+    upsertEvent(sample({ id: 'today-notified', start_date: yesterday, end_date: today }));
+    db.prepare("UPDATE events SET notified_1day = 1 WHERE id = 'today-notified'").run();
     upsertEvent(sample({ id: 'tmr-open', start_date: today, end_date: tomorrow }));
     upsertEvent(sample({ id: 'tmr-notified', start_date: today, end_date: tomorrow }));
     db.prepare("UPDATE events SET notified_1day = 1 WHERE id = 'tmr-notified'").run();
     upsertEvent(sample({ id: 'after', start_date: today, end_date: dayAfter }));
-    const ending = getEventsEndingTomorrow();
-    const ok = ending.length === 1 && ending[0].id === 'tmr-open';
-    check(ok, 'D-T8', ok ? '' : JSON.stringify(ending.map((e) => e.id)));
+    upsertEvent(sample({ id: 'yday', start_date: yesterday, end_date: yesterday }));
+    const ending = getEventsEndingSoon();
+    const ids = new Set(ending.map((e) => e.id));
+    const ok =
+      ids.size === 2 && ids.has('today-open') && ids.has('tmr-open');
+    check(ok, 'D-T8', ok ? '' : JSON.stringify([...ids]));
   } catch (e) {
     check(false, 'D-T8', e.message);
   }
@@ -449,6 +515,157 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     check(got === undefined, 'D-T15', `got=${JSON.stringify(got)}`);
   } catch (e) {
     check(false, 'D-T15', e.message);
+  }
+
+  // D-T16: getLastEventUpdate — empty DB → null
+  try {
+    resetDB();
+    const got = getLastEventUpdate();
+    check(got === null, 'D-T16', `got=${JSON.stringify(got)}`);
+  } catch (e) {
+    check(false, 'D-T16', e.message);
+  }
+
+  // D-T17: getLastEventUpdate — returns MAX(updated_at)
+  try {
+    resetDB();
+    upsertEvent(sample({ id: 'old' }));
+    upsertEvent(sample({ id: 'mid' }));
+    upsertEvent(sample({ id: 'new' }));
+    db.prepare("UPDATE events SET updated_at = '2024-01-01 00:00:00' WHERE id = 'old'").run();
+    db.prepare("UPDATE events SET updated_at = '2025-06-15 12:00:00' WHERE id = 'mid'").run();
+    db.prepare("UPDATE events SET updated_at = '2026-01-01 09:30:00' WHERE id = 'new'").run();
+    const got = getLastEventUpdate();
+    check(got === '2026-01-01 09:30:00', 'D-T17', `got=${got}`);
+  } catch (e) {
+    check(false, 'D-T17', e.message);
+  }
+
+  // D-T19: getCurrentEvents — active AND days<365 AND not permanent (NULL OK)
+  try {
+    resetDB();
+    const today = todayKST();
+    const tomorrow = addDaysKST(today, 1);
+    const longTerm = addDaysKST(today, 1500);
+    upsertEvent(sample({ id: 'c-soon', start_date: today, end_date: tomorrow }));
+    upsertEvent(sample({ id: 'c-soon-null', start_date: today, end_date: tomorrow }));
+    upsertEvent(sample({ id: 'c-soon-perm', start_date: today, end_date: tomorrow }));
+    upsertEvent(sample({ id: 'c-long-null', start_date: today, end_date: longTerm }));
+    upsertEvent(sample({ id: 'c-long-perm', start_date: today, end_date: longTerm }));
+    db.prepare("UPDATE events SET category = 'seasonal' WHERE id = 'c-soon'").run();
+    db.prepare("UPDATE events SET category = 'permanent' WHERE id IN ('c-soon-perm', 'c-long-perm')").run();
+    const current = getCurrentEvents().map((e) => e.id).sort();
+    const ok = current.length === 2 && current[0] === 'c-soon' && current[1] === 'c-soon-null';
+    check(ok, 'D-T19', ok ? '' : JSON.stringify(current));
+  } catch (e) {
+    check(false, 'D-T19', e.message);
+  }
+
+  // D-T20: getLongTermEvents — permanent category OR days>=365
+  try {
+    resetDB();
+    const today = todayKST();
+    const tomorrow = addDaysKST(today, 1);
+    const longTerm = addDaysKST(today, 1500);
+    upsertEvent(sample({ id: 'l-soon', start_date: today, end_date: tomorrow }));
+    upsertEvent(sample({ id: 'l-soon-perm', start_date: today, end_date: tomorrow }));
+    upsertEvent(sample({ id: 'l-long-null', start_date: today, end_date: longTerm }));
+    upsertEvent(sample({ id: 'l-long-limited', start_date: today, end_date: longTerm }));
+    db.prepare("UPDATE events SET category = 'permanent' WHERE id = 'l-soon-perm'").run();
+    db.prepare("UPDATE events SET category = 'limited' WHERE id = 'l-long-limited'").run();
+    const long = getLongTermEvents().map((e) => e.id).sort();
+    const ok =
+      long.length === 3 &&
+      long[0] === 'l-long-limited' &&
+      long[1] === 'l-long-null' &&
+      long[2] === 'l-soon-perm';
+    check(ok, 'D-T20', ok ? '' : JSON.stringify(long));
+  } catch (e) {
+    check(false, 'D-T20', e.message);
+  }
+
+  // D-T21: migrate adds is_welcome + heuristic backfill on existing data
+  try {
+    if (db) {
+      db.close();
+      db = undefined;
+    }
+    for (const suffix of ['', '-wal', '-shm']) {
+      const p = TEST_DB + suffix;
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    }
+    // Simulate pre-migration DB (no is_welcome column)
+    const tmp = new Database(TEST_DB);
+    tmp.exec(`
+      CREATE TABLE events (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        url TEXT,
+        image_url TEXT,
+        category TEXT,
+        notified_1day INTEGER DEFAULT 0,
+        updated_at TEXT DEFAULT (datetime('now'))
+      );
+    `);
+    tmp.prepare("INSERT INTO events (id, title, start_date, end_date) VALUES ('w1', '강화된 복귀 혜택', '2026-04-01', '2026-04-30')").run();
+    tmp.prepare("INSERT INTO events (id, title, start_date, end_date) VALUES ('w2', '풍성한 신규 혜택', '2026-04-01', '2026-04-30')").run();
+    tmp.prepare("INSERT INTO events (id, title, start_date, end_date) VALUES ('w3', '신생제', '2026-04-01', '2026-04-30')").run();
+    tmp.close();
+
+    initDB(TEST_DB);
+    const rows = db.prepare("SELECT id, is_welcome FROM events ORDER BY id").all();
+    const ok =
+      rows.length === 3 &&
+      rows[0].is_welcome === 1 && // 복귀
+      rows[1].is_welcome === 1 && // 신규
+      rows[2].is_welcome === 0;   // 신생제
+    check(ok, 'D-T21', ok ? '' : JSON.stringify(rows));
+  } catch (e) {
+    check(false, 'D-T21', e.message);
+  }
+
+  // D-T22: updateEventClassification sets both category and is_welcome
+  try {
+    resetDB();
+    upsertEvent(sample({ id: 'cls1' }));
+    updateEventClassification('cls1', 'limited', true);
+    const a = getEvent('cls1');
+    updateEventClassification('cls1', 'permanent', false);
+    const b = getEvent('cls1');
+    const ok =
+      a.category === 'limited' && a.is_welcome === 1 &&
+      b.category === 'permanent' && b.is_welcome === 0;
+    check(ok, 'D-T22', ok ? '' : JSON.stringify({ a, b }));
+  } catch (e) {
+    check(false, 'D-T22', e.message);
+  }
+
+  // D-T18: getPastEvents — end_date < today, ordered by end_date DESC
+  try {
+    resetDB();
+    const today = todayKST();
+    const yesterday = addDaysKST(today, -1);
+    const lastWeek = addDaysKST(today, -7);
+    const lastMonth = addDaysKST(today, -30);
+    const tomorrow = addDaysKST(today, 1);
+    upsertEvent(sample({ id: 'past-yday', start_date: lastMonth, end_date: yesterday }));
+    upsertEvent(sample({ id: 'past-week', start_date: lastMonth, end_date: lastWeek }));
+    upsertEvent(sample({ id: 'past-month', start_date: lastMonth, end_date: lastMonth }));
+    upsertEvent(sample({ id: 'today', start_date: lastWeek, end_date: today }));
+    upsertEvent(sample({ id: 'future', start_date: today, end_date: tomorrow }));
+    const past = getPastEvents();
+    const ids = past.map((e) => e.id);
+    const ok =
+      ids.length === 3 &&
+      ids[0] === 'past-yday' &&
+      ids[1] === 'past-week' &&
+      ids[2] === 'past-month';
+    check(ok, 'D-T18', ok ? '' : JSON.stringify(ids));
+  } catch (e) {
+    check(false, 'D-T18', e.message);
   }
 
   console.log(`\n총 ${results.pass + results.fail}건 중 ${results.pass} PASS / ${results.fail} FAIL`);

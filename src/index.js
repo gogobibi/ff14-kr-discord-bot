@@ -8,6 +8,7 @@ import {
 import {
   handleEventCommand,
   handleSetNotifyChannel,
+  handleScrapeNow,
 } from './commands.js';
 import { startScheduler } from './scheduler.js';
 
@@ -39,6 +40,7 @@ client.on(Events.InteractionCreate, async interaction => {
     if (interaction.isChatInputCommand()) {
       if (interaction.commandName === '이벤트') return handleEventCommand(interaction);
       if (interaction.commandName === '이벤트-알림채널') return handleSetNotifyChannel(interaction);
+      if (interaction.commandName === '이벤트-스크래핑') return handleScrapeNow(interaction);
     }
   } catch (err) {
     console.error('[interaction] 처리 실패:', err);
