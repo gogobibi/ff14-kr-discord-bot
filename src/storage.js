@@ -59,6 +59,15 @@ function migrate() {
       WHERE e.notified_d0 = 1 AND gc.notify_channel_id IS NOT NULL
     `);
   }
+  // 과거 분리 kind ('d1'/'d0') 를 단일 'ending' 으로 통합. 이미 알림이 나간 이벤트가
+  // 통합 후 재발송되는 것을 방지한다. 멱등 (PK 충돌 시 IGNORE).
+  db.exec(`
+    INSERT OR IGNORE INTO notification_log (guild_id, event_id, kind, sent_at)
+    SELECT guild_id, event_id, 'ending', MIN(sent_at)
+    FROM notification_log
+    WHERE kind IN ('d1', 'd0')
+    GROUP BY guild_id, event_id
+  `);
 }
 
 export function initDB(dbPath = DEFAULT_DB_PATH) {
@@ -769,12 +778,16 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const backfilled = hasNotified('g-notify', 'e-sent', 'd1');
     const freshSkipped = !hasNotified('g-notify', 'e-fresh', 'd1');
     const silentSkipped = !hasNotified('g-silent', 'e-sent', 'd1');
-    // 재호출 멱등: 다시 migrate 호출해도 행 수 변화 없어야 함
+    // 레거시 'd1' 은 단일 'ending' kind 로도 통합되어야 한다 (이후 dedup 은 'ending' 기준)
+    const endingBackfilled = hasNotified('g-notify', 'e-sent', 'ending');
+    const endingFreshSkipped = !hasNotified('g-notify', 'e-fresh', 'ending');
+    // 재호출 멱등: 다시 migrate 호출해도 행 수 변화 없어야 함 ('d1' + 'ending' = 2)
     const before = db.prepare('SELECT COUNT(*) AS n FROM notification_log').get().n;
     migrate();
     const after = db.prepare('SELECT COUNT(*) AS n FROM notification_log').get().n;
-    const ok = backfilled && freshSkipped && silentSkipped && before === after && before === 1;
-    check(ok, 'D-T23 migrate backfill', ok ? '' : `backfilled=${backfilled} fresh=${freshSkipped} silent=${silentSkipped} before=${before} after=${after}`);
+    const ok = backfilled && freshSkipped && silentSkipped && endingBackfilled &&
+      endingFreshSkipped && before === after && before === 2;
+    check(ok, 'D-T23 migrate backfill', ok ? '' : `backfilled=${backfilled} fresh=${freshSkipped} silent=${silentSkipped} ending=${endingBackfilled} endingFresh=${endingFreshSkipped} before=${before} after=${after}`);
   } catch (e) {
     check(false, 'D-T23', e.message);
   }
