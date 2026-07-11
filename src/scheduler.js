@@ -14,6 +14,7 @@ import {
   getLastEventUpdate,
 } from './storage.js';
 import { buildAlertContainer } from './ui.js';
+import { ENDING_ALERT_KIND } from './constants.js';
 
 const TZ = { timezone: 'Asia/Seoul' };
 const INITIAL_STALE_HOURS = 6;
@@ -129,16 +130,18 @@ export function startScheduler(client) {
     '0 19 * * *',
     () => notifyJob(client, {
       fetchEvents: getEventsEndingTomorrow,
-      kind: 'd1',
+      kind: ENDING_ALERT_KIND,
       label: 'D-1',
     }),
     TZ,
   );
+  // 09:00 은 전날 19:00 을 놓친 경우의 catch-up 이다. 같은 ENDING_ALERT_KIND 를 공유하므로
+  // 전날 이미 발송된 이벤트는 hasNotified 로 억제되어 중복 발송되지 않는다.
   cron.schedule(
     '0 9 * * *',
     () => notifyJob(client, {
       fetchEvents: getEventsEndingToday,
-      kind: 'd0',
+      kind: ENDING_ALERT_KIND,
       label: 'D-0',
     }),
     TZ,

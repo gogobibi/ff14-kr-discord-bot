@@ -11,6 +11,7 @@ import {
 } from './storage.js';
 import { buildEventListContainer, buildEmptyContainer, buildAlertContainer } from './ui.js';
 import { runScrapeNow } from './scheduler.js';
+import { ENDING_ALERT_KIND } from './constants.js';
 
 function buildContainerForFilter(filter) {
   const lastUpdate = getLastEventUpdate();
@@ -148,11 +149,11 @@ export async function handleSetNotifyChannel(interaction) {
     // 신규·복귀 혜택은 catch-up 제외 — 길드 일반 알림에는 부적절
     for (const event of getEventsEndingToday()) {
       if (event.is_welcome) continue;
-      if (hasNotified(interaction.guildId, event.id, 'd0')) continue;
+      if (hasNotified(interaction.guildId, event.id, ENDING_ALERT_KIND)) continue;
       try {
         const container = buildAlertContainer({ event });
         await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
-        markNotified(interaction.guildId, event.id, 'd0');
+        markNotified(interaction.guildId, event.id, ENDING_ALERT_KIND);
       } catch (err) {
         console.warn(`[알림:catch-up] event ${event.id} 발송 실패:`, err.message);
       }
